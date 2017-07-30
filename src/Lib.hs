@@ -18,7 +18,22 @@ import qualified Data.ByteString.Lazy as BSL
 
 someFunc :: IO ()
 someFunc = do
-  fileContent <- BS.readFile "smol.gif"
+  -- 4x4 = 2
+  -- 16x16 = 4
+  -- 64x64 = 8 maybe? fail
+  -- NOPE
+  -- let's try
+  -- n = 3 for 2 ^ (3 - 1) = 4
+  -- he says
+  -- 7 nframes
+  -- 128 pixel
+  -- 2 ^ 7 = 128
+  -- 2 ^ 2 = 4 WORKS
+  -- 2 ^ 3 = 8 WORKS
+  -- 2 ^ 4 = 16 WORKS
+  -- 2 ^ 5 = 32 ALSO WORKS
+  -- 2 ^ 7 = 144
+  fileContent <- BS.readFile "oneframe.gif"
   case Gif.decodeGifWithPaletteAndMetadata fileContent of
     Left error -> print $ "error: " ++ error
     Right (palette, meta) -> dealWithPaletteImage palette
@@ -26,7 +41,7 @@ someFunc = do
 finally :: M.Image M.Pixel8 -> M.Palette' M.PixelRGB8 -> IO ()
 finally image palette = do
   let p = M.palettedAsImage palette
-  let array = [(p, 50, image), (p, 50, timeWarp image 4 2)]
+  let array = [(p, 50, image), (p, 50, timeWarp image 5)]
   case Gif.encodeGifImages Gif.LoopingForever array of
     Left error -> print $ "error: " ++ error
     Right buffer -> BS.writeFile "loop.gif" (BSL.toStrict buffer)
@@ -41,8 +56,13 @@ dealWithPaletteImage img = do
     M.PalettedRGB16 _ _ -> print "PalettedRGB16"
   print "er"
 
-timeWarp :: CP.Image CP.Pixel8 -> Int -> Int -> CP.Image CP.Pixel8
-timeWarp img@CP.Image {..} size nframes = ST.runST $ do
+timeWarp :: CP.Image CP.Pixel8 -> Int -> CP.Image CP.Pixel8
+-- timeWarp img@CP.Image {..} size nframes = ST.runST $ do
+timeWarp img nframes = ST.runST $ do
+  let imageWidth = 2 ^ nframes
+  let imageHeight = 2 ^ nframes
+  -- let imageWidth = nframes ^ 2
+  -- let imageHeight = nframes ^ 2
   mimg <- M.newMutableImage imageWidth imageHeight
   let go k j
         | k > imageWidth  = go 1 (j + 1)
