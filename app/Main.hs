@@ -1,6 +1,7 @@
 module Main where
 
-import Lib
+import qualified Lib as Lib
+import qualified Gltch as Gltch
 
 main :: IO ()
-main = someFunc
+main = Gltch.someFunc
