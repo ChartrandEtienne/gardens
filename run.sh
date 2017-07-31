@@ -1,4 +1,4 @@
 #!/bin/sh
 
 stack build
-stack exec images-exe -- 16.gif 4 out.gif
+stack exec garden -- 16.gif 4 out.gif
