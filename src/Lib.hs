@@ -33,15 +33,29 @@ someFunc = do
   -- 2 ^ 4 = 16 WORKS
   -- 2 ^ 5 = 32 ALSO WORKS
   -- 2 ^ 7 = 144
-  fileContent <- BS.readFile "oneframe.gif"
+  fileContent <- BS.readFile "16.gif"
   case Gif.decodeGifWithPaletteAndMetadata fileContent of
     Left error -> print $ "error: " ++ error
     Right (palette, meta) -> dealWithPaletteImage palette
 
+recursiveFaceMelt :: [M.Image M.Pixel8] -> M.Image M.Pixel8 -> Int -> Int -> [M.Image M.Pixel8]
+recursiveFaceMelt accumulator image size frames = case frames of
+  0 -> accumulator
+  x -> recursiveFaceMelt newAccu newImage size (x - 1)
+    where
+      newImage = timeWarp image size
+      newAccu = newImage : accumulator
+
 finally :: M.Image M.Pixel8 -> M.Palette' M.PixelRGB8 -> IO ()
 finally image palette = do
   let p = M.palettedAsImage palette
-  let array = [(p, 50, image), (p, 50, timeWarp image 5)]
+  -- let frame1 = timeWarp image 4
+  -- let frame2 = timeWarp frame1 4
+  -- let frame3 = timeWarp frame2 4
+  -- let array = [(p, 50, image), (p, 50, timeWarp image 4)]
+  -- let array = [(p, 50, image), (p, 50, frame1), (p, 50, frame2), (p, 50, frame3)]
+  let frames = recursiveFaceMelt [] image 4 4
+  let array = map (\frame -> (p, 50, frame)) frames
   case Gif.encodeGifImages Gif.LoopingForever array of
     Left error -> print $ "error: " ++ error
     Right buffer -> BS.writeFile "loop.gif" (BSL.toStrict buffer)
