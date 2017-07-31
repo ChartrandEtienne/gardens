@@ -15,6 +15,15 @@ import qualified Codec.Picture.Gif as Gif
 import qualified Codec.Picture.Png as Png
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import System.Environment (getArgs)
+import Text.Read (readMaybe)
+
+parseArgs :: [String] -> Either String (String, Int, String)
+parseArgs [input, frames, output] = case readMaybe frames of
+  Just parsed -> Right (input, parsed, output)
+  _ -> Left "error parsing number of frames"
+parseArgs _ = Left "need 3 arguments"
+-- parseArgs args = Right ("", 1, "")
 
 someFunc :: IO ()
 someFunc = do
@@ -33,10 +42,14 @@ someFunc = do
   -- 2 ^ 4 = 16 WORKS
   -- 2 ^ 5 = 32 ALSO WORKS
   -- 2 ^ 7 = 144
-  fileContent <- BS.readFile "16.gif"
-  case Gif.decodeGifWithPaletteAndMetadata fileContent of
-    Left error -> print $ "error: " ++ error
-    Right (palette, meta) -> dealWithPaletteImage palette
+  args <- getArgs
+  case parseArgs args of
+    Right (input, frames, output) -> do
+      fileContent <- BS.readFile input
+      case Gif.decodeGifWithPaletteAndMetadata fileContent of
+        Left error -> print $ "error: " ++ error
+        Right (palette, meta) -> dealWithPaletteImage palette frames output
+    Left error -> print error
 
 recursiveFaceMelt :: [M.Image M.Pixel8] -> M.Image M.Pixel8 -> Int -> Int -> [M.Image M.Pixel8]
 recursiveFaceMelt accumulator image size frames = case frames of
@@ -46,26 +59,21 @@ recursiveFaceMelt accumulator image size frames = case frames of
       newImage = timeWarp image size
       newAccu = newImage : accumulator
 
-finally :: M.Image M.Pixel8 -> M.Palette' M.PixelRGB8 -> IO ()
-finally image palette = do
+finally :: M.Image M.Pixel8 -> M.Palette' M.PixelRGB8 -> Int -> String -> IO ()
+finally image palette nframes output = do
   let p = M.palettedAsImage palette
-  -- let frame1 = timeWarp image 4
-  -- let frame2 = timeWarp frame1 4
-  -- let frame3 = timeWarp frame2 4
-  -- let array = [(p, 50, image), (p, 50, timeWarp image 4)]
-  -- let array = [(p, 50, image), (p, 50, frame1), (p, 50, frame2), (p, 50, frame3)]
-  let frames = recursiveFaceMelt [] image 4 4
+  let frames = recursiveFaceMelt [] image nframes nframes
   let array = map (\frame -> (p, 50, frame)) frames
   case Gif.encodeGifImages Gif.LoopingForever array of
     Left error -> print $ "error: " ++ error
-    Right buffer -> BS.writeFile "loop.gif" (BSL.toStrict buffer)
+    Right buffer -> BS.writeFile output (BSL.toStrict buffer)
 
-dealWithPaletteImage :: M.PalettedImage -> IO ()
-dealWithPaletteImage img = do
+dealWithPaletteImage :: M.PalettedImage -> Int -> String -> IO ()
+dealWithPaletteImage img frames output = do
   case img of
     M.TrueColorImage _ -> print "TrueColorImage"
     M.PalettedY8 _ _ -> print "PalettedY8"
-    M.PalettedRGB8 image palette -> finally image palette
+    M.PalettedRGB8 image palette -> finally image palette frames output
     M.PalettedRGBA8 _ _ -> print "PalettedRGBA8"
     M.PalettedRGB16 _ _ -> print "PalettedRGB16"
   print "er"
